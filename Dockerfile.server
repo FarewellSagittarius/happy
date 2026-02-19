@@ -22,7 +22,7 @@ COPY packages/happy-server/prisma packages/happy-server/prisma
 COPY packages/happy-cli/scripts packages/happy-cli/scripts
 COPY packages/happy-cli/tools packages/happy-cli/tools
 
-RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines
+RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --network-timeout 600000
 
 # Stage 2: build the server
 FROM deps AS builder
@@ -49,8 +49,6 @@ COPY --from=builder /repo/node_modules /repo/node_modules
 COPY --from=builder /repo/packages/happy-wire /repo/packages/happy-wire
 COPY --from=builder /repo/packages/happy-server /repo/packages/happy-server
 
-# Expose the port the app will run on
-EXPOSE 3000
+EXPOSE 3005
 
-# Command to run the application
-CMD ["yarn", "--cwd", "packages/happy-server", "start"]
+CMD ["sh", "-c", "cd packages/happy-server && npx prisma migrate deploy && exec yarn start"]
