@@ -22,7 +22,7 @@ COPY packages/happy-server/prisma packages/happy-server/prisma
 COPY packages/happy-cli/scripts packages/happy-cli/scripts
 COPY packages/happy-cli/tools packages/happy-cli/tools
 
-RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --network-timeout 600000
+RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines
 
 # Stage 2: build the server
 FROM deps AS builder
@@ -52,5 +52,5 @@ COPY --from=builder /repo/packages/happy-server /repo/packages/happy-server
 # Expose the port the app will run on
 EXPOSE 3000
 
-# Run migrations then start the server
-CMD ["sh", "-c", "yarn --cwd packages/happy-server tsx sources/standalone.ts migrate && yarn --cwd packages/happy-server start"]
+# Command to run the application
+CMD ["yarn", "--cwd", "packages/happy-server", "start"]
