@@ -87,6 +87,11 @@ export async function startHappyServer(client: ApiSessionClient) {
 
     const server = createServer(async (req, res) => {
         try {
+            const url = req.url || '';
+            if (url.startsWith('/.well-known/')) {
+                res.writeHead(404).end();
+                return;
+            }
             await transport.handleRequest(req, res);
         } catch (error) {
             logger.debug("Error handling request:", error);
