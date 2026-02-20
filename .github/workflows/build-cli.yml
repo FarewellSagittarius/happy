@@ -39,13 +39,15 @@ jobs:
       - name: Publish to GitHub Packages
         working-directory: packages/happy-cli
         run: |
-          # Scope the package to the repo owner for GitHub Packages
+          # Scope the package and append git sha to version for unique builds
+          SHORT_SHA=$(git rev-parse --short HEAD)
           node -e "
             const pkg = require('./package.json');
             pkg.name = '@farewellsagittarius/happy-coder';
+            pkg.version = pkg.version + '-${SHORT_SHA}';
             pkg.publishConfig = { registry: 'https://npm.pkg.github.com' };
             require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
           "
-          npm publish || echo "Version already published, skipping"
+          npm publish --ignore-scripts || echo "Version already published, skipping"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
