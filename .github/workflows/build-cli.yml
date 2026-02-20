@@ -13,8 +13,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write
 
     steps:
       - name: Checkout
@@ -24,8 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: https://npm.pkg.github.com
-          scope: '@farewellsagittarius'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile --ignore-engines --network-timeout 600000
@@ -36,18 +33,39 @@ jobs:
       - name: Build happy-cli
         run: yarn workspace happy-coder build
 
-      - name: Publish to GitHub Packages
+      - name: Pack tarball
         working-directory: packages/happy-cli
-        run: |
-          # Scope the package and append git sha to version for unique builds
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          node -e "
-            const pkg = require('./package.json');
-            pkg.name = '@farewellsagittarius/happy-coder';
-            pkg.version = pkg.version + '-${SHORT_SHA}';
-            pkg.publishConfig = { registry: 'https://npm.pkg.github.com' };
-            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
-          "
-          npm publish --ignore-scripts || echo "Version already published, skipping"
+        run: npm pack --ignore-scripts
+
+      - name: Upload to GitHub Release
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./packages/happy-cli/package.json').version")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="cli-v${VERSION}-${SHORT_SHA}"
+          TGZ=$(ls packages/happy-cli/*.tgz)
+
+          # Rename to a clean name
+          cp "$TGZ" packages/happy-cli/happy-coder.tgz
+
+          # Delete existing release with same tag if exists
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          git tag -d "$TAG" 2>/dev/null || true
+          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+
+          # Create release
+          gh release create "$TAG" \
+            packages/happy-cli/happy-coder.tgz \
+            --title "Happy CLI ${VERSION} (${SHORT_SHA})" \
+            --notes "Install: \`npm i -g https://github.com/FarewellSagittarius/happy/releases/download/${TAG}/happy-coder.tgz\`"
+
+          # Also update the "latest-cli" release for stable URL
+          gh release delete "latest-cli" --yes 2>/dev/null || true
+          git tag -d "latest-cli" 2>/dev/null || true
+          git push origin ":refs/tags/latest-cli" 2>/dev/null || true
+
+          gh release create "latest-cli" \
+            packages/happy-cli/happy-coder.tgz \
+            --title "Happy CLI Latest" \
+            --notes "Latest build: ${VERSION} (${SHORT_SHA})"$'\n\n'"Install: \`npm i -g https://github.com/FarewellSagittarius/happy/releases/download/latest-cli/happy-coder.tgz\`"
